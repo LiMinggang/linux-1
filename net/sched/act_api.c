@@ -21,8 +21,6 @@
 #include <linux/kmod.h>
 #include <linux/err.h>
 #include <linux/module.h>
-#include <linux/rhashtable.h>
-#include <linux/list.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/sch_generic.h>
@@ -1510,7 +1508,6 @@ out_module_put:
 }
 
 struct tcf_action_net {
-	struct rhashtable egdev_ht;
 	struct list_head egdev_list;
 };
 
@@ -1521,156 +1518,6 @@ struct tcf_action_egdev_cb {
 	tc_setup_cb_t *cb;
 	void *cb_priv;
 };
-
-struct tcf_action_egdev {
-	struct rhash_head ht_node;
-	const struct net_device *dev;
-	unsigned int refcnt;
-	struct list_head cb_list;
-};
-
-static const struct rhashtable_params tcf_action_egdev_ht_params = {
-	.key_offset = offsetof(struct tcf_action_egdev, dev),
-	.head_offset = offsetof(struct tcf_action_egdev, ht_node),
-	.key_len = sizeof(const struct net_device *),
-};
-
-static struct tcf_action_egdev *
-tcf_action_egdev_lookup(const struct net_device *dev)
-{
-	struct net *net = dev_net(dev);
-	struct tcf_action_net *tan = net_generic(net, tcf_action_net_id);
-
-	return rhashtable_lookup_fast(&tan->egdev_ht, &dev,
-				      tcf_action_egdev_ht_params);
-}
-
-static struct tcf_action_egdev *
-tcf_action_egdev_get(const struct net_device *dev)
-{
-	struct tcf_action_egdev *egdev;
-	struct tcf_action_net *tan;
-
-	egdev = tcf_action_egdev_lookup(dev);
-	if (egdev)
-		goto inc_ref;
-
-	egdev = kzalloc(sizeof(*egdev), GFP_KERNEL);
-	if (!egdev)
-		return NULL;
-	INIT_LIST_HEAD(&egdev->cb_list);
-	egdev->dev = dev;
-	tan = net_generic(dev_net(dev), tcf_action_net_id);
-	rhashtable_insert_fast(&tan->egdev_ht, &egdev->ht_node,
-			       tcf_action_egdev_ht_params);
-
-inc_ref:
-	egdev->refcnt++;
-	return egdev;
-}
-
-static void tcf_action_egdev_put(struct tcf_action_egdev *egdev)
-{
-	struct tcf_action_net *tan;
-
-	if (--egdev->refcnt)
-		return;
-	tan = net_generic(dev_net(egdev->dev), tcf_action_net_id);
-	rhashtable_remove_fast(&tan->egdev_ht, &egdev->ht_node,
-			       tcf_action_egdev_ht_params);
-	kfree(egdev);
-}
-
-static struct tcf_action_egdev_cb *
-tcf_action_egdev_cb_lookup(struct tcf_action_egdev *egdev,
-			   tc_setup_cb_t *cb, void *cb_priv)
-{
-	struct tcf_action_egdev_cb *egdev_cb;
-
-	list_for_each_entry(egdev_cb, &egdev->cb_list, list)
-		if (egdev_cb->cb == cb && egdev_cb->cb_priv == cb_priv)
-			return egdev_cb;
-	return NULL;
-}
-
-static int tcf_action_egdev_cb_call(struct tcf_action_egdev *egdev,
-				    enum tc_setup_type type,
-				    void *type_data, bool err_stop)
-{
-	struct tcf_action_egdev_cb *egdev_cb;
-	int ok_count = 0;
-	int err;
-
-	list_for_each_entry(egdev_cb, &egdev->cb_list, list) {
-		err = egdev_cb->cb(type, type_data, egdev_cb->cb_priv);
-		if (err) {
-			if (err_stop)
-				return err;
-		} else {
-			ok_count++;
-		}
-	}
-	return ok_count;
-}
-
-static int tcf_action_egdev_cb_add(struct tcf_action_egdev *egdev,
-				   tc_setup_cb_t *cb, void *cb_priv)
-{
-	struct tcf_action_egdev_cb *egdev_cb;
-
-	egdev_cb = tcf_action_egdev_cb_lookup(egdev, cb, cb_priv);
-	if (WARN_ON(egdev_cb))
-		return -EEXIST;
-	egdev_cb = kzalloc(sizeof(*egdev_cb), GFP_KERNEL);
-	if (!egdev_cb)
-		return -ENOMEM;
-	egdev_cb->cb = cb;
-	egdev_cb->cb_priv = cb_priv;
-	list_add(&egdev_cb->list, &egdev->cb_list);
-	return 0;
-}
-
-static void tcf_action_egdev_cb_del(struct tcf_action_egdev *egdev,
-				    tc_setup_cb_t *cb, void *cb_priv)
-{
-	struct tcf_action_egdev_cb *egdev_cb;
-
-	egdev_cb = tcf_action_egdev_cb_lookup(egdev, cb, cb_priv);
-	if (WARN_ON(!egdev_cb))
-		return;
-	list_del(&egdev_cb->list);
-	kfree(egdev_cb);
-}
-
-static int __tc_setup_cb_egdev_register(const struct net_device *dev,
-					tc_setup_cb_t *cb, void *cb_priv)
-{
-	struct tcf_action_egdev *egdev = tcf_action_egdev_get(dev);
-	int err;
-
-	if (!egdev)
-		return -ENOMEM;
-	err = tcf_action_egdev_cb_add(egdev, cb, cb_priv);
-	if (err)
-		goto err_cb_add;
-	return 0;
-
-err_cb_add:
-	tcf_action_egdev_put(egdev);
-	return err;
-}
-
-int tc_setup_cb_egdev_register(const struct net_device *dev,
-			       tc_setup_cb_t *cb, void *cb_priv)
-{
-	int err;
-
-	rtnl_lock();
-	err = __tc_setup_cb_egdev_register(dev, cb, cb_priv);
-	rtnl_unlock();
-	return err;
-}
-EXPORT_SYMBOL_GPL(tc_setup_cb_egdev_register);
 
 /* TODO: this name (egdev) does not make sense at all anymore */
 int tc_setup_cb_egdev_all_register(const struct net_device *dev,
@@ -1712,38 +1559,6 @@ void tc_setup_cb_egdev_all_unregister(const struct net_device *dev,
 }
 EXPORT_SYMBOL_GPL(tc_setup_cb_egdev_all_unregister);
 
-static void __tc_setup_cb_egdev_unregister(const struct net_device *dev,
-					   tc_setup_cb_t *cb, void *cb_priv)
-{
-	struct tcf_action_egdev *egdev = tcf_action_egdev_lookup(dev);
-
-	if (WARN_ON(!egdev))
-		return;
-	tcf_action_egdev_cb_del(egdev, cb, cb_priv);
-	tcf_action_egdev_put(egdev);
-}
-
-void tc_setup_cb_egdev_unregister(const struct net_device *dev,
-				  tc_setup_cb_t *cb, void *cb_priv)
-{
-	rtnl_lock();
-	__tc_setup_cb_egdev_unregister(dev, cb, cb_priv);
-	rtnl_unlock();
-}
-EXPORT_SYMBOL_GPL(tc_setup_cb_egdev_unregister);
-
-int tc_setup_cb_egdev_call(const struct net_device *dev,
-			   enum tc_setup_type type, void *type_data,
-			   bool err_stop)
-{
-	struct tcf_action_egdev *egdev = tcf_action_egdev_lookup(dev);
-
-	if (!egdev)
-		return 0;
-	return tcf_action_egdev_cb_call(egdev, type, type_data, err_stop);
-}
-EXPORT_SYMBOL_GPL(tc_setup_cb_egdev_call);
-
 /* TODO: The egdev_list list is not protected */
 int tc_setup_cb_egdev_all_call_fast(enum tc_setup_type type, void *type_data)
 {
@@ -1766,14 +1581,11 @@ static __net_init int tcf_action_net_init(struct net *net)
 	struct tcf_action_net *tan = net_generic(net, tcf_action_net_id);
 
 	INIT_LIST_HEAD(&tan->egdev_list);
-	return rhashtable_init(&tan->egdev_ht, &tcf_action_egdev_ht_params);
+	return 0;
 }
 
 static void __net_exit tcf_action_net_exit(struct net *net)
 {
-	struct tcf_action_net *tan = net_generic(net, tcf_action_net_id);
-
-	rhashtable_destroy(&tan->egdev_ht);
 }
 
 static struct pernet_operations tcf_action_net_ops = {
