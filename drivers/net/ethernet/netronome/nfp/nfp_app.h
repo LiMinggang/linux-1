@@ -97,6 +97,7 @@ extern const struct nfp_app_type app_abm;
  * @port_get_stats_strings:	get strings for extra statistics
  * @start:	start application logic
  * @stop:	stop application logic
+ * @netdev_event:	Netdevice notifier event
  * @ctrl_msg_rx:    control message handler
  * @ctrl_msg_rx_raw:	handler for control messages from data queues
  * @setup_tc:	setup TC ndo
@@ -150,6 +151,9 @@ struct nfp_app_type {
 	int (*start)(struct nfp_app *app);
 	void (*stop)(struct nfp_app *app);
 
+	int (*netdev_event)(struct nfp_app *app, struct net_device *netdev,
+			    unsigned long event, void *ptr);
+
 	void (*ctrl_msg_rx)(struct nfp_app *app, struct sk_buff *skb);
 	void (*ctrl_msg_rx_raw)(struct nfp_app *app, const void *data,
 				unsigned int len);
@@ -178,6 +182,7 @@ struct nfp_app_type {
  * @ctrl:	pointer to ctrl vNIC struct
  * @reprs:	array of pointers to representors
  * @type:	pointer to const application ops and info
+ * @netdev_nb:	Netdevice notifier block
  * @priv:	app-specific priv data
  */
 struct nfp_app {
@@ -189,6 +194,9 @@ struct nfp_app {
 	struct nfp_reprs __rcu *reprs[NFP_REPR_TYPE_MAX + 1];
 
 	const struct nfp_app_type *type;
+
+	struct notifier_block netdev_nb;
+
 	void *priv;
 };
 
@@ -287,21 +295,6 @@ nfp_app_repr_change_mtu(struct nfp_app *app, struct net_device *netdev,
 	if (!app || !app->type->repr_change_mtu)
 		return 0;
 	return app->type->repr_change_mtu(app, netdev, new_mtu);
-}
-
-static inline int nfp_app_start(struct nfp_app *app, struct nfp_net *ctrl)
-{
-	app->ctrl = ctrl;
-	if (!app->type->start)
-		return 0;
-	return app->type->start(app);
-}
-
-static inline void nfp_app_stop(struct nfp_app *app)
-{
-	if (!app->type->stop)
-		return;
-	app->type->stop(app);
 }
 
 static inline const char *nfp_app_name(struct nfp_app *app)
@@ -455,6 +448,8 @@ nfp_app_ctrl_msg_alloc(struct nfp_app *app, unsigned int size, gfp_t priority);
 
 struct nfp_app *nfp_app_alloc(struct nfp_pf *pf, enum nfp_app_id id);
 void nfp_app_free(struct nfp_app *app);
+int nfp_app_start(struct nfp_app *app, struct nfp_net *ctrl);
+void nfp_app_stop(struct nfp_app *app);
 
 /* Callbacks shared between apps */
 
