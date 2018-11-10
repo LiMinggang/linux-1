@@ -38,6 +38,7 @@
 #include <linux/skbuff.h>
 #include <linux/types.h>
 #include <net/geneve.h>
+#include <net/vxlan.h>
 
 #include "../nfp_app.h"
 #include "../nfpcore/nfp_cpp.h"
@@ -503,6 +504,32 @@ static inline void *nfp_flower_cmsg_get_data(struct sk_buff *skb)
 static inline int nfp_flower_cmsg_get_data_len(struct sk_buff *skb)
 {
 	return skb->len - NFP_FLOWER_CMSG_HLEN;
+}
+
+static inline bool
+nfp_fl_netdev_is_tunnel_type(struct net_device *netdev,
+			     enum nfp_flower_tun_type tun_type)
+{
+	if (!strcmp(netdev->rtnl_link_ops->kind, "vxlan"))
+		return tun_type == NFP_FL_TUNNEL_VXLAN;
+	if (!strcmp(netdev->rtnl_link_ops->kind, "geneve"))
+		return tun_type == NFP_FL_TUNNEL_GENEVE;
+
+	return false;
+}
+
+static inline bool nfp_fl_is_netdev_to_offload(struct net_device *netdev)
+{
+	if (!netdev->rtnl_link_ops)
+		return false;
+	if (!strcmp(netdev->rtnl_link_ops->kind, "openvswitch"))
+		return true;
+	if (!strcmp(netdev->rtnl_link_ops->kind, "vxlan"))
+		return true;
+	if (!strcmp(netdev->rtnl_link_ops->kind, "geneve"))
+		return true;
+
+	return false;
 }
 
 struct sk_buff *
