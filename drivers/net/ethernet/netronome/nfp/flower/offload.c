@@ -557,8 +557,8 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 		return -EINVAL;
 
 	spin_lock_bh(&nfp_flow->lock);
-	tcf_exts_stats_update(flow->exts, nfp_flow->stats.bytes,
-			      nfp_flow->stats.pkts, nfp_flow->stats.used);
+	flow_stats_update(&flow->stats, nfp_flow->stats.bytes,
+			  nfp_flow->stats.pkts, nfp_flow->stats.used);
 
 	nfp_flow->stats.pkts = 0;
 	nfp_flow->stats.bytes = 0;
