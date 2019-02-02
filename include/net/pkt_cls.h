@@ -6,6 +6,7 @@
 #include <linux/workqueue.h>
 #include <net/sch_generic.h>
 #include <net/act_api.h>
+#include <net/flow_offload.h>
 
 /* TC action not accessible from user space */
 #define TC_ACT_REINSERT		(TC_ACT_VALUE_MAX + 1)
@@ -771,9 +772,7 @@ struct tc_cls_flower_offload {
 	struct tc_cls_common_offload common;
 	enum tc_fl_command command;
 	unsigned long cookie;
-	struct flow_dissector *dissector;
-	struct fl_flow_key *mask;
-	struct fl_flow_key *key;
+	struct flow_rule *rule;
 	struct tcf_exts *exts;
 	u32 classid;
 
@@ -781,6 +780,12 @@ struct tc_cls_flower_offload {
 	u8 ct_state_key;
 	u8 ct_state_mask;
 };
+
+static inline struct flow_rule *
+tc_cls_flower_offload_flow_rule(struct tc_cls_flower_offload *tc_flow_cmd)
+{
+	return tc_flow_cmd->rule;
+}
 
 enum tc_matchall_command {
 	TC_CLSMATCHALL_REPLACE,
