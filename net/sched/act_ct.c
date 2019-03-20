@@ -540,6 +540,7 @@ static void tcf_conntrack_nat_parse(struct tcf_conntrack_info *info,
 static int tcf_conntrack_init(struct net *net, struct nlattr *nla,
 			     struct nlattr *est, struct tc_action **a,
 			     int ovr, int bind, bool rtnl_held,
+			     struct tcf_proto *tp,
 			     struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, conntrack_net_id);
