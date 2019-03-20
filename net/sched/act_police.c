@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <net/act_api.h>
 #include <net/netlink.h>
+#include <net/pkt_cls.h>
 
 struct tcf_police {
 	struct tc_action	common;
@@ -79,13 +80,14 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 			       struct tcf_proto *tp,
 			       struct netlink_ext_ack *extack)
 {
-	int ret = 0, err;
-	struct nlattr *tb[TCA_POLICE_MAX + 1];
-	struct tc_police *parm;
-	struct tcf_police *police;
-	struct qdisc_rate_table *R_tab = NULL, *P_tab = NULL;
 	struct tc_action_net *tn = net_generic(net, police_net_id);
+	struct qdisc_rate_table *R_tab = NULL, *P_tab = NULL;
+	struct nlattr *tb[TCA_POLICE_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
+	struct tcf_police *police;
+	struct tc_police *parm;
 	bool exists = false;
+	int ret = 0, err;
 	int size;
 
 	if (nla == NULL)
@@ -121,6 +123,9 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0)
+		goto release_idr;
 
 	police = to_police(*a);
 	if (parm->rate.rate) {
@@ -183,12 +188,15 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 							     police->tcfp_mtu);
 		police->tcfp_ptoks = police->tcfp_mtu_ptoks;
 	}
-	police->tcf_action = parm->action;
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 
 	if (tb[TCA_POLICE_AVRATE])
 		police->tcfp_ewma_rate = nla_get_u32(tb[TCA_POLICE_AVRATE]);
 
 	spin_unlock_bh(&police->tcf_lock);
+
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 	if (ret != ACT_P_CREATED)
 		return ret;
 
@@ -200,6 +208,9 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 failure:
 	qdisc_put_rtab(P_tab);
 	qdisc_put_rtab(R_tab);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+release_idr:
 	tcf_idr_release(*a, bind);
 	return err;
 }
