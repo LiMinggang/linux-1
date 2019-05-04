@@ -663,12 +663,14 @@ tc_cls_common_offload_init(struct flow_cls_common_offload *cls_common,
 enum tc_matchall_command {
 	TC_CLSMATCHALL_REPLACE,
 	TC_CLSMATCHALL_DESTROY,
+	TC_CLSMATCHALL_STATS,
 };
 
 struct tc_cls_matchall_offload {
 	struct flow_cls_common_offload common;
 	enum tc_matchall_command command;
 	struct flow_rule *rule;
+	struct flow_stats stats;
 	unsigned long cookie;
 };
 
