@@ -2848,34 +2848,7 @@ static int i40evf_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
 	}
 }
 
-/**
- * i40evf_setup_tc_block - register callbacks for tc
- * @netdev: network interface device structure
- * @f: tc offload data
- *
- * This function registers block callbacks for tc
- * offloads
- **/
-static int i40evf_setup_tc_block(struct net_device *dev,
-				 struct tc_block_offload *f)
-{
-	struct i40evf_adapter *adapter = netdev_priv(dev);
-
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
-
-	switch (f->command) {
-	case TC_BLOCK_BIND:
-		return tcf_block_cb_register(f->block, i40evf_setup_tc_block_cb,
-					     adapter, adapter, f->extack);
-	case TC_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block, i40evf_setup_tc_block_cb,
-					adapter);
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
-}
+static LIST_HEAD(i40evf_block_cb_list);
 
 /**
  * i40evf_setup_tc - configure multiple traffic classes
@@ -2891,11 +2864,16 @@ static int i40evf_setup_tc_block(struct net_device *dev,
 static int i40evf_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 			   void *type_data)
 {
+	struct iavf_adapter *adapter = netdev_priv(netdev);
+
 	switch (type) {
 	case TC_SETUP_QDISC_MQPRIO:
 		return __i40evf_setup_tc(netdev, type_data);
 	case TC_SETUP_BLOCK:
-		return i40evf_setup_tc_block(netdev, type_data);
+		return flow_block_cb_setup_simple(type_data,
+						  &i40evf_block_cb_list,
+						  i40evf_setup_tc_block_cb,
+						  adapter, adapter, true);
 	default:
 		return -EOPNOTSUPP;
 	}
