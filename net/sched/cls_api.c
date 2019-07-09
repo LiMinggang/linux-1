@@ -683,6 +683,7 @@ static void tc_indr_block_ing_cmd(struct tc_indr_block_dev *indr_dev,
 	struct tc_block_offload bo = {
 		.command	= command,
 		.binder_type	= FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS,
+		.net		= dev_net(indr_dev->dev),
 		.block		= indr_dev->block,
 	};
 
@@ -771,6 +772,7 @@ static void tc_indr_block_call(struct tcf_block *block, struct net_device *dev,
 	struct tc_block_offload bo = {
 		.command	= command,
 		.binder_type	= ei->binder_type,
+		.net		= dev_net(dev),
 		.block		= block,
 		.extack		= extack,
 	};
@@ -799,6 +801,7 @@ static int tcf_block_offload_cmd(struct tcf_block *block,
 {
 	struct tc_block_offload bo = {};
 
+	bo.net = dev_net(dev);
 	bo.command = command;
 	bo.binder_type = ei->binder_type;
 	bo.block = block;
