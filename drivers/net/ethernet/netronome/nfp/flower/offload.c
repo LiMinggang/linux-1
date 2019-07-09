@@ -608,7 +608,7 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 {
 	struct nfp_repr *repr = netdev_priv(netdev);
 
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
+	if (f->binder_type != FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
 		return -EOPNOTSUPP;
 
 	switch (f->command) {
