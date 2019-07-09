@@ -2030,10 +2030,10 @@ static int qede_parse_actions(struct qede_dev *edev,
 
 static int
 qede_tc_parse_ports(struct qede_dev *edev,
-		    struct tc_cls_flower_offload *f,
+		    struct flow_cls_offload *f,
 		    struct qede_arfs_tuple *t)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
 		struct flow_match_ports match;
@@ -2054,10 +2054,10 @@ qede_tc_parse_ports(struct qede_dev *edev,
 
 static int
 qede_tc_parse_v6_common(struct qede_dev *edev,
-			struct tc_cls_flower_offload *f,
+			struct flow_cls_offload *f,
 			struct qede_arfs_tuple *t)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct in6_addr zero_addr, addr;
 
 	memset(&zero_addr, 0, sizeof(addr));
@@ -2088,10 +2088,10 @@ qede_tc_parse_v6_common(struct qede_dev *edev,
 
 static int
 qede_tc_parse_v4_common(struct qede_dev *edev,
-			struct tc_cls_flower_offload *f,
+			struct flow_cls_offload *f,
 			struct qede_arfs_tuple *t)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS)) {
 		struct flow_match_ipv4_addrs match;
@@ -2115,7 +2115,7 @@ qede_tc_parse_v4_common(struct qede_dev *edev,
 
 static int
 qede_tc_parse_tcp_v6(struct qede_dev *edev,
-		     struct tc_cls_flower_offload *f,
+		     struct flow_cls_offload *f,
 		     struct qede_arfs_tuple *tuple)
 {
 	tuple->ip_proto = IPPROTO_TCP;
@@ -2126,7 +2126,7 @@ qede_tc_parse_tcp_v6(struct qede_dev *edev,
 
 static int
 qede_tc_parse_tcp_v4(struct qede_dev *edev,
-		     struct tc_cls_flower_offload *f,
+		     struct flow_cls_offload *f,
 		     struct qede_arfs_tuple *tuple)
 {
 	tuple->ip_proto = IPPROTO_TCP;
@@ -2137,7 +2137,7 @@ qede_tc_parse_tcp_v4(struct qede_dev *edev,
 
 static int
 qede_tc_parse_udp_v6(struct qede_dev *edev,
-		     struct tc_cls_flower_offload *f,
+		     struct flow_cls_offload *f,
 		     struct qede_arfs_tuple *tuple)
 {
 	tuple->ip_proto = IPPROTO_UDP;
@@ -2148,7 +2148,7 @@ qede_tc_parse_udp_v6(struct qede_dev *edev,
 
 static int
 qede_tc_parse_udp_v4(struct qede_dev *edev,
-		     struct tc_cls_flower_offload *f,
+		     struct flow_cls_offload *f,
 		     struct qede_arfs_tuple *tuple)
 {
 	tuple->ip_proto = IPPROTO_UDP;
@@ -2159,10 +2159,10 @@ qede_tc_parse_udp_v4(struct qede_dev *edev,
 
 static int
 qede_parse_flower_attr(struct qede_dev *edev, __be16 proto,
-		       struct tc_cls_flower_offload *f,
+		       struct flow_cls_offload *f,
 		       struct qede_arfs_tuple *tuple)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = rule->match.dissector;
 	int rc = -EINVAL;
 	u8 ip_proto = 0;
@@ -2208,7 +2208,7 @@ qede_parse_flower_attr(struct qede_dev *edev, __be16 proto,
 }
 
 int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
-			    struct tc_cls_flower_offload *f)
+			    struct flow_cls_offload *f)
 {
 	struct qede_arfs_fltr_node *n;
 	int min_hlen, rc = -EINVAL;

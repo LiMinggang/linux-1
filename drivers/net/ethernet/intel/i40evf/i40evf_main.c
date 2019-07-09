@@ -2435,14 +2435,14 @@ exit:
 /**
  * i40evf_parse_cls_flower - Parse tc flower filters provided by kernel
  * @adapter: board private structure
- * @cls_flower: pointer to struct tc_cls_flower_offload
+ * @cls_flower: pointer to struct flow_cls_offload
  * @filter: pointer to cloud filter structure
  */
 static int i40evf_parse_cls_flower(struct i40evf_adapter *adapter,
-				   struct tc_cls_flower_offload *f,
+				   struct flow_cls_offload *f,
 				   struct i40evf_cloud_filter *filter)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = rule->match.dissector;
 	u16 n_proto_mask = 0;
 	u16 n_proto_key = 0;
@@ -2706,10 +2706,10 @@ static int i40evf_handle_tclass(struct i40evf_adapter *adapter, u32 tc,
 /**
  * i40evf_configure_clsflower - Add tc flower filters
  * @adapter: board private structure
- * @cls_flower: Pointer to struct tc_cls_flower_offload
+ * @cls_flower: Pointer to struct flow_cls_offload
  */
 static int i40evf_configure_clsflower(struct i40evf_adapter *adapter,
-				      struct tc_cls_flower_offload *cls_flower)
+				      struct flow_cls_offload *cls_flower)
 {
 	int tc = tc_classid_to_hwtc(adapter->netdev, cls_flower->classid);
 	struct i40evf_cloud_filter *filter = NULL;
@@ -2785,10 +2785,10 @@ static struct i40evf_cloud_filter *i40evf_find_cf(struct i40evf_adapter *adapter
 /**
  * i40evf_delete_clsflower - Remove tc flower filters
  * @adapter: board private structure
- * @cls_flower: Pointer to struct tc_cls_flower_offload
+ * @cls_flower: Pointer to struct flow_cls_offload
  */
 static int i40evf_delete_clsflower(struct i40evf_adapter *adapter,
-				   struct tc_cls_flower_offload *cls_flower)
+				   struct flow_cls_offload *cls_flower)
 {
 	struct i40evf_cloud_filter *filter = NULL;
 	int err = 0;
@@ -2812,17 +2812,17 @@ static int i40evf_delete_clsflower(struct i40evf_adapter *adapter,
  * @type_data: offload data
  */
 static int i40evf_setup_tc_cls_flower(struct i40evf_adapter *adapter,
-				      struct tc_cls_flower_offload *cls_flower)
+				      struct flow_cls_offload *cls_flower)
 {
 	if (cls_flower->common.chain_index)
 		return -EOPNOTSUPP;
 
 	switch (cls_flower->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return i40evf_configure_clsflower(adapter, cls_flower);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		return i40evf_delete_clsflower(adapter, cls_flower);
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		return -EOPNOTSUPP;
 	default:
 		return -EOPNOTSUPP;

@@ -525,10 +525,10 @@ static u32 nfp_fl_csum_l4_to_flag(u8 ip_proto)
 
 static int
 nfp_fl_pedit(const struct flow_action_entry *act,
-	     struct tc_cls_flower_offload *flow,
+	     struct flow_cls_offload *flow,
 	     char *nfp_action, int *a_len, u32 *csum_updated)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 	struct nfp_fl_set_ipv6_addr set_ip6_dst, set_ip6_src;
 	struct nfp_fl_set_ip4_addrs set_ip_addr;
 	enum flow_action_mangle_base htype;
@@ -687,7 +687,7 @@ nfp_flower_output_action(struct nfp_app *app, const struct flow_action_entry *ac
 
 static int
 nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
-		       struct tc_cls_flower_offload *flow,
+		       struct flow_cls_offload *flow,
 		       struct nfp_fl_payload *nfp_fl, int *a_len,
 		       struct net_device *netdev,
 		       enum nfp_flower_tun_type *tun_type, int *tun_out_cnt,
@@ -798,7 +798,7 @@ nfp_flower_loop_action(struct nfp_app *app, const struct flow_action_entry *act,
 }
 
 int nfp_flower_compile_action(struct nfp_app *app,
-			      struct tc_cls_flower_offload *flow,
+			      struct flow_cls_offload *flow,
 			      struct net_device *netdev,
 			      struct nfp_fl_payload *nfp_flow)
 {

@@ -3291,7 +3291,7 @@ EXPORT_SYMBOL(tcf_exts_num_actions);
 
 int tc_setup_cb_call_all(struct tcf_block *block, enum tc_setup_type type, void *type_data)
 {
-	struct tcf_block_cb *block_cb;
+	struct flow_block_cb *block_cb;
 	int err;
 
 	if (block) {

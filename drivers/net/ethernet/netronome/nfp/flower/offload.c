@@ -131,9 +131,9 @@ nfp_flower_xmit_flow(struct net_device *netdev,
 	return 0;
 }
 
-static bool nfp_flower_check_higher_than_mac(struct tc_cls_flower_offload *f)
+static bool nfp_flower_check_higher_than_mac(struct flow_cls_offload *f)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 
 	return flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS) ||
 	       flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS) ||
@@ -160,10 +160,10 @@ static int
 nfp_flower_calculate_key_layers(struct nfp_app *app,
 				struct net_device *netdev,
 				struct nfp_fl_key_ls *ret_key_ls,
-				struct tc_cls_flower_offload *flow,
+				struct flow_cls_offload *flow,
 				enum nfp_flower_tun_type *tun_type)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(flow);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
 	struct flow_dissector *dissector = rule->match.dissector;
 	struct flow_match_basic basic = { NULL, NULL};
 	struct nfp_flower_priv *priv = app->priv;
@@ -432,7 +432,7 @@ err_free_flow:
  */
 static int
 nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
-		       struct tc_cls_flower_offload *flow)
+		       struct flow_cls_offload *flow)
 {
 	enum nfp_flower_tun_type tun_type = NFP_FL_TUNNEL_NONE;
 	struct nfp_port *port = nfp_port_from_netdev(netdev);
@@ -506,7 +506,7 @@ err_free_key_ls:
  */
 static int
 nfp_flower_del_offload(struct nfp_app *app, struct net_device *netdev,
-		       struct tc_cls_flower_offload *flow)
+		       struct flow_cls_offload *flow)
 {
 	struct nfp_port *port = nfp_port_from_netdev(netdev);
 	struct nfp_fl_payload *nfp_flow;
@@ -552,7 +552,7 @@ err_free_flow:
  */
 static int
 nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
-		     struct tc_cls_flower_offload *flow)
+		     struct flow_cls_offload *flow)
 {
 	struct nfp_fl_payload *nfp_flow;
 
@@ -574,17 +574,17 @@ nfp_flower_get_stats(struct nfp_app *app, struct net_device *netdev,
 
 static int
 nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
-			struct tc_cls_flower_offload *flower)
+			struct flow_cls_offload *flower)
 {
 	if (!eth_proto_is_802_3(flower->common.protocol))
 		return -EOPNOTSUPP;
 
 	switch (flower->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return nfp_flower_add_offload(app, netdev, flower);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		return nfp_flower_del_offload(app, netdev, flower);
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		return nfp_flower_get_stats(app, netdev, flower);
 	default:
 		return -EOPNOTSUPP;

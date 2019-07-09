@@ -569,13 +569,6 @@ unsigned int tcf_exts_num_actions(struct tcf_exts *exts);
 
 int tc_setup_cb_call_all(struct tcf_block *block, enum tc_setup_type type, void *type_data);
 
-struct tc_cls_common_offload {
-	u32 chain_index;
-	__be16 protocol;
-	u32 prio;
-	struct netlink_ext_ack *extack;
-};
-
 struct tc_cls_u32_knode {
 	struct tcf_exts *exts;
 	struct tc_u32_sel *sel;
@@ -602,7 +595,7 @@ enum tc_clsu32_command {
 };
 
 struct tc_cls_u32_offload {
-	struct tc_cls_common_offload common;
+	struct flow_cls_common_offload common;
 	/* knode values */
 	enum tc_clsu32_command command;
 	union {
@@ -629,7 +622,7 @@ static inline bool tc_can_offload_extack(const struct net_device *dev,
 
 static inline bool
 tc_cls_can_offload_and_chain0(const struct net_device *dev,
-			      struct tc_cls_common_offload *common)
+			      struct flow_cls_common_offload *common)
 {
 	if (!tc_can_offload_extack(dev, common->extack))
 		return false;
@@ -671,7 +664,7 @@ static inline bool tc_in_hw(u32 flags)
 }
 
 static inline void
-tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
+tc_cls_common_offload_init(struct flow_cls_common_offload *cls_common,
 			   const struct tcf_proto *tp, u32 flags,
 			   struct netlink_ext_ack *extack)
 {
@@ -682,40 +675,13 @@ tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
 		cls_common->extack = extack;
 }
 
-enum tc_fl_command {
-	TC_CLSFLOWER_REPLACE,
-	TC_CLSFLOWER_DESTROY,
-	TC_CLSFLOWER_STATS,
-	TC_CLSFLOWER_TMPLT_CREATE,
-	TC_CLSFLOWER_TMPLT_DESTROY,
-};
-
-struct tc_cls_flower_offload {
-	struct tc_cls_common_offload common;
-	enum tc_fl_command command;
-	unsigned long cookie;
-	struct flow_rule *rule;
-	struct flow_stats stats;
-	u32 classid;
-
-	/* FIXME: ugly */
-	u8 ct_state_key;
-	u8 ct_state_mask;
-};
-
-static inline struct flow_rule *
-tc_cls_flower_offload_flow_rule(struct tc_cls_flower_offload *tc_flow_cmd)
-{
-	return tc_flow_cmd->rule;
-}
-
 enum tc_matchall_command {
 	TC_CLSMATCHALL_REPLACE,
 	TC_CLSMATCHALL_DESTROY,
 };
 
 struct tc_cls_matchall_offload {
-	struct tc_cls_common_offload common;
+	struct flow_cls_common_offload common;
 	enum tc_matchall_command command;
 	struct tcf_exts *exts;
 	unsigned long cookie;
@@ -727,7 +693,7 @@ enum tc_clsbpf_command {
 };
 
 struct tc_cls_bpf_offload {
-	struct tc_cls_common_offload common;
+	struct flow_cls_common_offload common;
 	enum tc_clsbpf_command command;
 	struct tcf_exts *exts;
 	struct bpf_prog *prog;

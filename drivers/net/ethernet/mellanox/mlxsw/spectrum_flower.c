@@ -122,7 +122,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 }
 
 static void mlxsw_sp_flower_parse_ipv4(struct mlxsw_sp_acl_rule_info *rulei,
-				       struct tc_cls_flower_offload *f)
+				       struct flow_cls_offload *f)
 {
 	struct flow_match_ipv4_addrs match;
 
@@ -137,7 +137,7 @@ static void mlxsw_sp_flower_parse_ipv4(struct mlxsw_sp_acl_rule_info *rulei,
 }
 
 static void mlxsw_sp_flower_parse_ipv6(struct mlxsw_sp_acl_rule_info *rulei,
-				       struct tc_cls_flower_offload *f)
+				       struct flow_cls_offload *f)
 {
 	struct flow_match_ipv6_addrs match;
 
@@ -171,10 +171,10 @@ static void mlxsw_sp_flower_parse_ipv6(struct mlxsw_sp_acl_rule_info *rulei,
 
 static int mlxsw_sp_flower_parse_ports(struct mlxsw_sp *mlxsw_sp,
 				       struct mlxsw_sp_acl_rule_info *rulei,
-				       struct tc_cls_flower_offload *f,
+				       struct flow_cls_offload *f,
 				       u8 ip_proto)
 {
-	const struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	const struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_match_ports match;
 
 	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS))
@@ -198,10 +198,10 @@ static int mlxsw_sp_flower_parse_ports(struct mlxsw_sp *mlxsw_sp,
 
 static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_rule_info *rulei,
-				     struct tc_cls_flower_offload *f,
+				     struct flow_cls_offload *f,
 				     u8 ip_proto)
 {
-	const struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	const struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_match_tcp match;
 
 	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_TCP))
@@ -223,10 +223,10 @@ static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
 
 static int mlxsw_sp_flower_parse_ip(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_acl_rule_info *rulei,
-				    struct tc_cls_flower_offload *f,
+				    struct flow_cls_offload *f,
 				    u16 n_proto)
 {
-	const struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	const struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_match_ip match;
 
 	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IP))
@@ -257,9 +257,9 @@ static int mlxsw_sp_flower_parse_ip(struct mlxsw_sp *mlxsw_sp,
 static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_block *block,
 				 struct mlxsw_sp_acl_rule_info *rulei,
-				 struct tc_cls_flower_offload *f)
+				 struct flow_cls_offload *f)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(f);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = rule->match.dissector;
 	u16 n_proto_mask = 0;
 	u16 n_proto_key = 0;
@@ -379,7 +379,7 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_block *block,
-			    struct tc_cls_flower_offload *f)
+			    struct flow_cls_offload *f)
 {
 	struct mlxsw_sp_acl_rule_info *rulei;
 	struct mlxsw_sp_acl_ruleset *ruleset;
@@ -426,7 +426,7 @@ err_rule_create:
 
 void mlxsw_sp_flower_destroy(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_acl_block *block,
-			     struct tc_cls_flower_offload *f)
+			     struct flow_cls_offload *f)
 {
 	struct mlxsw_sp_acl_ruleset *ruleset;
 	struct mlxsw_sp_acl_rule *rule;
@@ -448,7 +448,7 @@ void mlxsw_sp_flower_destroy(struct mlxsw_sp *mlxsw_sp,
 
 int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
 			  struct mlxsw_sp_acl_block *block,
-			  struct tc_cls_flower_offload *f)
+			  struct flow_cls_offload *f)
 {
 	struct mlxsw_sp_acl_ruleset *ruleset;
 	struct mlxsw_sp_acl_rule *rule;
@@ -484,7 +484,7 @@ err_rule_get_stats:
 
 int mlxsw_sp_flower_tmplt_create(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_block *block,
-				 struct tc_cls_flower_offload *f)
+				 struct flow_cls_offload *f)
 {
 	struct mlxsw_sp_acl_ruleset *ruleset;
 	struct mlxsw_sp_acl_rule_info rulei;
@@ -505,7 +505,7 @@ int mlxsw_sp_flower_tmplt_create(struct mlxsw_sp *mlxsw_sp,
 
 void mlxsw_sp_flower_tmplt_destroy(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_acl_block *block,
-				   struct tc_cls_flower_offload *f)
+				   struct flow_cls_offload *f)
 {
 	struct mlxsw_sp_acl_ruleset *ruleset;
 
