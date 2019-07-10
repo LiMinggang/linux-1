@@ -687,7 +687,7 @@ static void tc_indr_block_ing_cmd(struct net_device *dev,
 		.command	= command,
 		.binder_type	= FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS,
 		.net		= dev_net(dev),
-		.block_shared	= tcf_block_shared(block),
+		.block_shared	= tcf_block_non_null_shared(block),
 	};
 	INIT_LIST_HEAD(&bo.cb_list);
 
