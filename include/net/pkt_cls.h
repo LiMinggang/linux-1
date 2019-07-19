@@ -6,7 +6,6 @@
 #include <linux/workqueue.h>
 #include <net/sch_generic.h>
 #include <net/act_api.h>
-#include <net/flow_offload.h>
 
 /* TC action not accessible from user space */
 #define TC_ACT_REINSERT		(TC_ACT_VALUE_MAX + 1)
@@ -120,14 +119,14 @@ static inline struct net_device *tcf_block_dev(struct tcf_block *block)
 }
 
 static inline
-int tc_setup_cb_block_register(struct tcf_block *block, tc_setup_cb_t *cb,
+int tc_setup_cb_block_register(struct tcf_block *block, flow_setup_cb_t *cb,
 			       void *cb_priv)
 {
 	return 0;
 }
 
 static inline
-void tc_setup_cb_block_unregister(struct tcf_block *block, tc_setup_cb_t *cb,
+void tc_setup_cb_block_unregister(struct tcf_block *block, flow_setup_cb_t *cb,
 				  void *cb_priv)
 {
 }

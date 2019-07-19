@@ -1515,13 +1515,13 @@ static unsigned int tcf_action_net_id;
 
 struct tcf_action_egdev_cb {
 	struct list_head list;
-	tc_setup_cb_t *cb;
+	flow_setup_cb_t *cb;
 	void *cb_priv;
 };
 
 /* TODO: this name (egdev) does not make sense at all anymore */
 int tc_setup_cb_egdev_all_register(const struct net_device *dev,
-				   tc_setup_cb_t *cb, void *cb_priv)
+				   flow_setup_cb_t *cb, void *cb_priv)
 {
 	struct tcf_action_egdev_cb *egdev_cb;
 	struct tcf_action_net *tan;
@@ -1541,7 +1541,7 @@ int tc_setup_cb_egdev_all_register(const struct net_device *dev,
 EXPORT_SYMBOL_GPL(tc_setup_cb_egdev_all_register);
 
 void tc_setup_cb_egdev_all_unregister(const struct net_device *dev,
-				      tc_setup_cb_t *cb, void *cb_priv)
+				      flow_setup_cb_t *cb, void *cb_priv)
 {
 	struct tcf_action_egdev_cb *egdev_cb;
 	struct tcf_action_net *tan;
