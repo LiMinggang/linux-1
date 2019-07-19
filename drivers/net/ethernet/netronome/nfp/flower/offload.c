@@ -627,8 +627,7 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 					  &nfp_block_cb_list))
 			return -EBUSY;
 
-		block_cb = flow_block_cb_alloc(f->net,
-					       nfp_flower_setup_tc_block_cb,
+		block_cb = flow_block_cb_alloc(nfp_flower_setup_tc_block_cb,
 					       repr, repr, NULL);
 		if (IS_ERR(block_cb))
 			return PTR_ERR(block_cb);
