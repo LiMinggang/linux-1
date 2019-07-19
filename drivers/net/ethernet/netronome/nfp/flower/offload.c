@@ -636,7 +636,8 @@ static int nfp_flower_setup_tc_block(struct net_device *netdev,
 		list_add_tail(&block_cb->driver_list, &nfp_block_cb_list);
 		return 0;
 	case FLOW_BLOCK_UNBIND:
-		block_cb = flow_block_cb_lookup(f, nfp_flower_setup_tc_block_cb,
+		block_cb = flow_block_cb_lookup(f->block,
+						nfp_flower_setup_tc_block_cb,
 						repr);
 		if (!block_cb)
 			return -ENOENT;
