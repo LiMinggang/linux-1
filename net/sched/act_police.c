@@ -88,6 +88,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	struct tc_police *parm;
 	bool exists = false;
 	int ret = 0, err;
+	u32 index;
 	int size;
 
 	if (nla == NULL)
@@ -104,7 +105,8 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		return -EINVAL;
 
 	parm = nla_data(tb[TCA_POLICE_TBF]);
-	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	index = parm->index;
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (err < 0)
 		return err;
 	exists = err;
@@ -112,10 +114,10 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		return 0;
 
 	if (!exists) {
-		ret = tcf_idr_create(tn, parm->index, NULL, a,
+		ret = tcf_idr_create(tn, index, NULL, a,
 				     &act_police_ops, bind, false);
 		if (ret) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 		ret = ACT_P_CREATED;

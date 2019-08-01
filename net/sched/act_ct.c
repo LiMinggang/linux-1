@@ -550,6 +550,7 @@ static int tcf_conntrack_init(struct net *net, struct nlattr *nla,
 	int ret = 0;
 	struct nf_conntrack_zone zone;
 	struct nf_conn *tmpl = NULL;
+	u32 index;
 
 	if (!nla)
 		return -EINVAL;
@@ -564,12 +565,13 @@ static int tcf_conntrack_init(struct net *net, struct nlattr *nla,
 
 	parm = nla_data(tb[TCA_CONNTRACK_PARMS]);
 
-	ret = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	index = parm->index;
+	ret = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (!ret) {
-		ret = tcf_idr_create(tn, parm->index, est, a,
+		ret = tcf_idr_create(tn, index, est, a,
 				     &act_conntrack_ops, bind, false);
 		if (ret) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			return ret;
 		}
 
@@ -590,7 +592,7 @@ static int tcf_conntrack_init(struct net *net, struct nlattr *nla,
 			tmpl = nf_ct_tmpl_alloc(net, &zone, GFP_ATOMIC);
 			if (!tmpl) {
 				pr_debug("Failed to allocate conntrack template");
-				tcf_idr_cleanup(tn, parm->index);
+				tcf_idr_cleanup(tn, index);
 				spin_unlock_bh(&ci->tcf_lock);
 				return -ENOMEM;
 			}
