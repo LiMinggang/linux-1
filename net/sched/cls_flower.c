@@ -449,7 +449,7 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	cls_flower.ct_state_key = f->mkey.ct_state;
 	cls_flower.ct_state_mask = f->mask->key.ct_state;
 
-	err = tc_setup_flow_action(&cls_flower.rule->action, &f->exts);
+	err = tc_setup_flow_action(&cls_flower.rule->action, &f->exts, true);
 	if (err) {
 		kfree(cls_flower.rule);
 		if (skip_sw)
@@ -1758,7 +1758,8 @@ static int fl_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,
 		cls_flower.rule->match.mask = &f->mask->key;
 		cls_flower.rule->match.key = &f->mkey;
 
-		err = tc_setup_flow_action(&cls_flower.rule->action, &f->exts);
+		err = tc_setup_flow_action(&cls_flower.rule->action, &f->exts,
+					   true);
 		if (err) {
 			kfree(cls_flower.rule);
 			if (tc_skip_sw(f->flags)) {
