@@ -394,23 +394,29 @@ static struct notifier_block mirred_device_notifier = {
 	.notifier_call = mirred_device_event,
 };
 
-static struct net_device *tcf_mirred_get_dev(const struct tc_action *a)
+static void tcf_mirred_dev_put(void *priv)
+{
+	struct net_device *dev = priv;
+
+	dev_put(dev);
+}
+
+static struct net_device *
+tcf_mirred_get_dev(const struct tc_action *a,
+		   tc_action_priv_destructor *destructor)
 {
 	struct tcf_mirred *m = to_mirred(a);
 	struct net_device *dev;
 
 	rcu_read_lock();
 	dev = rcu_dereference(m->tcfm_dev);
-	if (dev)
+	if (dev) {
 		dev_hold(dev);
+		*destructor = tcf_mirred_dev_put;
+	}
 	rcu_read_unlock();
 
 	return dev;
-}
-
-static void tcf_mirred_put_dev(struct net_device *dev)
-{
-	dev_put(dev);
 }
 
 static struct tc_action_ops act_mirred_ops = {
@@ -426,7 +432,6 @@ static struct tc_action_ops act_mirred_ops = {
 	.lookup		=	tcf_mirred_search,
 	.size		=	sizeof(struct tcf_mirred),
 	.get_dev	=	tcf_mirred_get_dev,
-	.put_dev	=	tcf_mirred_put_dev,
 };
 
 static __net_init int mirred_init_net(struct net *net)
