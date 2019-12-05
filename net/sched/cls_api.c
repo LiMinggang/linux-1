@@ -1118,6 +1118,7 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 {
 	struct sk_buff *skb;
 	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
+	int err = 0;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
@@ -1130,10 +1131,14 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 	}
 
 	if (unicast)
-		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+		err = netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+	else
+		err = rtnetlink_send(skb, net, portid, RTNLGRP_TC,
+				     n->nlmsg_flags & NLM_F_ECHO);
 
-	return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
-			      n->nlmsg_flags & NLM_F_ECHO);
+	if (err > 0)
+		err = 0;
+	return err;
 }
 
 static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
@@ -1164,12 +1169,15 @@ static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
 	}
 
 	if (unicast)
-		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
-
-	err = rtnetlink_send(skb, net, portid, RTNLGRP_TC,
-			     n->nlmsg_flags & NLM_F_ECHO);
+		err = netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+	else
+		err = rtnetlink_send(skb, net, portid, RTNLGRP_TC,
+				     n->nlmsg_flags & NLM_F_ECHO);
 	if (err < 0)
 		NL_SET_ERR_MSG(extack, "Failed to send filter delete notification");
+
+	if (err > 0)
+		err = 0;
 	return err;
 }
 
@@ -1761,6 +1769,7 @@ static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
 	struct tcf_block *block = chain->block;
 	struct net *net = block->net;
 	struct sk_buff *skb;
+	int err = 0;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
@@ -1773,9 +1782,13 @@ static int tc_chain_notify(struct tcf_chain *chain, struct sk_buff *oskb,
 	}
 
 	if (unicast)
-		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+		err = netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+	else
+		err = rtnetlink_send(skb, net, portid, RTNLGRP_TC, flags & NLM_F_ECHO);
 
-	return rtnetlink_send(skb, net, portid, RTNLGRP_TC, flags & NLM_F_ECHO);
+	if (err > 0)
+		err = 0;
+	return err;
 }
 
 static int tc_chain_tmplt_add(struct tcf_chain *chain, struct net *net,
