@@ -523,7 +523,7 @@ static int __netlink_insert(struct netlink_table *table, struct sock *sk)
 					    netlink_rhashtable_params);
 }
 
-static struct sock *netlink_lookup(struct net *net, int protocol, u32 portid)
+struct sock *netlink_lookup(struct net *net, int protocol, u32 portid)
 {
 	struct netlink_table *table = &nl_table[protocol];
 	struct sock *sk;
@@ -536,6 +536,7 @@ static struct sock *netlink_lookup(struct net *net, int protocol, u32 portid)
 
 	return sk;
 }
+EXPORT_SYMBOL(netlink_lookup);
 
 static const struct proto_ops netlink_ops;
 
