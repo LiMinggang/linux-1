@@ -466,8 +466,7 @@ int ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 		kfree_skb(skb);
 		return error;
 	}
-	ovs_dp_process_packet(skb, &key);
-	return 0;
+	return ovs_dp_process_packet(skb, &key);
 }
 
 static int packet_length(const struct sk_buff *skb,

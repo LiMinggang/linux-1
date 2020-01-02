@@ -226,7 +226,7 @@ void ovs_dp_detach_port(struct vport *p)
 }
 
 /* Must be called with rcu_read_lock. */
-void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
+int ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 {
 	const struct vport *p = OVS_CB(skb)->input_vport;
 	struct datapath *dp = p->dp;
@@ -235,6 +235,7 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 	struct dp_stats_percpu *stats;
 	u64 *stats_counter;
 	u32 n_mask_hit;
+	int err = 0;
 
 	stats = this_cpu_ptr(dp->stats_percpu);
 
@@ -242,16 +243,13 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 	flow = ovs_flow_tbl_lookup_stats(&dp->table, key, &n_mask_hit);
 	if (unlikely(!flow)) {
 		struct dp_upcall_info upcall;
-		int error;
 
 		memset(&upcall, 0, sizeof(upcall));
 		upcall.cmd = OVS_PACKET_CMD_MISS;
 		upcall.portid = ovs_vport_find_upcall_portid(p, skb);
 		upcall.mru = OVS_CB(skb)->mru;
-		error = ovs_dp_upcall(dp, skb, key, &upcall, 0);
-		if (unlikely(error))
-			kfree_skb(skb);
-		else
+		err = ovs_dp_upcall(dp, skb, key, &upcall, 0);
+		if (likely(!err))
 			consume_skb(skb);
 		stats_counter = &stats->n_missed;
 		goto out;
@@ -269,6 +267,8 @@ out:
 	(*stats_counter)++;
 	stats->n_mask_hit += n_mask_hit;
 	u64_stats_update_end(&stats->syncp);
+
+	return err;
 }
 
 int ovs_dp_upcall(struct datapath *dp, struct sk_buff *skb,
@@ -1542,6 +1542,133 @@ static void ovs_dp_change(struct datapath *dp, struct nlattr *a[])
 		dp->user_features = nla_get_u32(a[OVS_DP_ATTR_USER_FEATURES]);
 }
 
+static void ovs_monitor_work(struct work_struct *work)
+{
+	struct datapath *dp = container_of(work, struct datapath, work.work);
+	struct vport *vport = NULL;
+	struct sock *sock = NULL;
+	struct net_device *dev;
+	int err = 0;
+	int ret = 0;
+	u32 id;
+	int i;
+
+	/* datapath will be destroyed, return now */
+	if (test_bit(OVS_DP_DESTROY, &dp->state))
+		return;
+
+	/*
+	 * OVS daemon crashed, use the backup route by bringing down
+	 * and up the bridge internal port who has ip address.
+	 */
+	if (test_bit(OVS_CRASH, &dp->state)) {
+		pr_info("%s: OVS_CRASH bit set: %lx\n", __func__, dp->state);
+
+		rtnl_lock();
+		rcu_read_lock();
+
+		for_each_netdev_rcu(&init_net, dev) {
+			if (dev->priv_flags & IFF_OPENVSWITCH &&
+			    dev->flags & IFF_UP &&
+			    dev->ip_ptr->ifa_list) {
+				ret = dev_change_flags(dev, dev->flags &
+						       ~IFF_UP);
+				if (ret) {
+					pr_err("%s: bring down %s err %d\n",
+					       __func__, dev->name, ret);
+					err += ret;
+				}
+				ret = dev_change_flags(dev, dev->flags |
+						       IFF_UP);
+				if (ret) {
+					pr_err("%s: bring up %s err %d\n",
+					       __func__, dev->name, ret);
+					err += ret;
+				}
+			}
+		}
+
+		rcu_read_unlock();
+		rtnl_unlock();
+
+		ret = ovs_flow_tbl_flush(&dp->table);
+		if (ret) {
+			pr_err("%s: ovs_flow_tbl_flush returns %d\n",
+			       __func__, ret);
+			err += ret;
+		}
+
+		if (!err) {
+			set_bit(OVS_CRASH_RECOVER, &dp->state);
+			clear_bit(OVS_CRASH, &dp->state);
+		}
+	}
+
+	if (!test_bit(OVS_CRASH_RECOVER, &dp->state))
+		goto out;
+
+	rcu_read_lock();
+	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
+		struct hlist_node *n;
+
+		/* find the first non-local vport */
+		hlist_for_each_entry_safe(vport, n, &dp->ports[i], dp_hash_node)
+			if (vport->port_no != OVSP_LOCAL)
+				goto found;
+	}
+
+found:
+	if (vport && vport->upcall_portids->n_ids == 1) {
+		id = vport->upcall_portids->ids[0];
+		sock = netlink_lookup(&init_net, NETLINK_GENERIC, id);
+	}
+	rcu_read_unlock();
+
+	/* netlink socket is NULL, OVS daemon is not up */
+	if (!id || !sock)
+		goto out;
+
+	/*
+	 * OVS daemon is up and netlink socket is created again,
+	 * recover to the normal route.
+	 */
+	pr_info("%s: OVS_CRASH_RECOVER bit set: %lx\n", __func__, dp->state);
+	rtnl_lock();
+	rcu_read_lock();
+
+	for_each_netdev_rcu(&init_net, dev) {
+		if (dev->priv_flags & IFF_OVS_DATAPATH &&
+		    dev->flags & IFF_UP &&
+		    dev->ip_ptr->ifa_list) {
+			ret = dev_change_flags(dev, dev->flags & ~IFF_UP);
+			if (ret) {
+				pr_err("%s: bring down %s err %d\n",
+				       __func__, dev->name, ret);
+				err += ret;
+			}
+			msleep(50);
+			ret = dev_change_flags(dev, dev->flags | IFF_UP);
+			if (ret) {
+				pr_err("%s: bring down %s err %d\n",
+				       __func__, dev->name, ret);
+				err += ret;
+			}
+		}
+	}
+
+	rcu_read_unlock();
+	rtnl_unlock();
+
+	if (!err) {
+		clear_bit(OVS_CRASH_RECOVER, &dp->state);
+		return;
+	}
+
+out:
+	if (!test_bit(OVS_DP_DESTROY, &dp->state))
+		schedule_delayed_work(&dp->work, HZ);
+}
+
 static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr **a = info->attrs;
@@ -1633,6 +1760,8 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 
 	ovs_unlock();
 
+	INIT_DELAYED_WORK(&dp->work, ovs_monitor_work);
+
 	ovs_notify(&dp_datapath_genl_family, reply, info);
 	return 0;
 
@@ -1657,6 +1786,9 @@ err:
 static void __dp_destroy(struct datapath *dp)
 {
 	int i;
+
+	set_bit(OVS_DP_DESTROY, &dp->state);
+	flush_delayed_work(&dp->work);
 
 	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++) {
 		struct vport *vport;

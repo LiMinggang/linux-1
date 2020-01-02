@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/llc.h>
 #include <linux/rtnetlink.h>
+#include <linux/netlink.h>
 #include <linux/skbuff.h>
 #include <linux/openvswitch.h>
 #include <linux/export.h>
@@ -39,9 +40,10 @@
 static struct vport_ops ovs_netdev_vport_ops;
 
 /* Must be called with rcu_read_lock. */
-static void netdev_port_receive(struct sk_buff *skb)
+static int netdev_port_receive(struct sk_buff *skb)
 {
 	struct vport *vport;
+	int err;
 
 	vport = ovs_netdev_get_vport(skb->dev);
 	if (unlikely(!vport))
@@ -55,28 +57,47 @@ static void netdev_port_receive(struct sk_buff *skb)
 	 */
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
-		return;
+		return 0;
 
 	if (skb->dev->type == ARPHRD_ETHER) {
 		skb_push(skb, ETH_HLEN);
 		skb_postpush_rcsum(skb, skb->data, ETH_HLEN);
 	}
-	ovs_vport_receive(vport, skb, skb_tunnel_info(skb));
-	return;
+
+	err = ovs_vport_receive(vport, skb, skb_tunnel_info(skb));
+
+	if (unlikely(err == -ENOTCONN || err == -ECONNREFUSED)) {
+		/* recover skb, otherwise, we'll hit checksum issue */
+		if (skb->dev->type == ARPHRD_ETHER)
+			skb_pull(skb, ETH_HLEN);
+		skb->ip_summed = CHECKSUM_NONE;
+
+		if (!test_bit(OVS_CRASH_RECOVER, &vport->dp->state))
+			if (!test_and_set_bit(OVS_CRASH, &vport->dp->state))
+				schedule_delayed_work(&vport->dp->work, 0);
+	}
+
+	return err;
 error:
 	kfree_skb(skb);
+
+	return 0;
 }
 
 /* Called with rcu_read_lock and bottom-halves disabled. */
 static rx_handler_result_t netdev_frame_hook(struct sk_buff **pskb)
 {
 	struct sk_buff *skb = *pskb;
+	int err = 0;
 
 	if (unlikely(skb->pkt_type == PACKET_LOOPBACK))
 		return RX_HANDLER_PASS;
 
-	netdev_port_receive(skb);
-	return RX_HANDLER_CONSUMED;
+	err = netdev_port_receive(skb);
+	if (err == -ENOTCONN || err == -ECONNREFUSED)
+		return RX_HANDLER_PASS;
+	else
+		return RX_HANDLER_CONSUMED;
 }
 
 static struct net_device *get_dpdev(const struct datapath *dp)
