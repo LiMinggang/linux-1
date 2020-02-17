@@ -3577,7 +3577,7 @@ static void tcf_sample_get_group(struct flow_action_entry *entry,
 int tc_setup_flow_action(struct flow_action *flow_action,
 			 const struct tcf_exts *exts, bool rtnl_held)
 {
-	const struct tc_action *act;
+	struct tc_action *act;
 	int i, j, k, err = 0;
 
 	if (!exts)
@@ -3591,6 +3591,7 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 		struct flow_action_entry *entry;
 
 		entry = &flow_action->entries[j];
+		spin_lock_bh(&act->tcfa_lock);
 		if (is_tcf_gact_ok(act)) {
 			entry->id = FLOW_ACTION_ACCEPT;
 		} else if (is_tcf_gact_shot(act)) {
@@ -3631,13 +3632,13 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 				break;
 			default:
 				err = -EOPNOTSUPP;
-				goto err_out;
+				goto err_out_locked;
 			}
 		} else if (is_tcf_tunnel_set(act)) {
 			entry->id = FLOW_ACTION_TUNNEL_ENCAP;
 			err = tcf_tunnel_encap_get_tunnel(entry, act);
 			if (err)
-				goto err_out;
+				goto err_out_locked;
 		} else if (is_tcf_tunnel_release(act)) {
 			entry->id = FLOW_ACTION_TUNNEL_DECAP;
 		} else if (is_tcf_pedit(act)) {
@@ -3651,7 +3652,7 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 					break;
 				default:
 					err = -EOPNOTSUPP;
-					goto err_out;
+					goto err_out_locked;
 				}
 				entry->mangle.htype = tcf_pedit_htype(act, k);
 				entry->mangle.mask = tcf_pedit_mask(act, k);
@@ -3678,8 +3679,9 @@ int tc_setup_flow_action(struct flow_action *flow_action,
 				tcf_police_rate_bytes_ps(act);
 		} else {
 			err = -EOPNOTSUPP;
-			goto err_out;
+			goto err_out_locked;
 		}
+		spin_unlock_bh(&act->tcfa_lock);
 
 		if (!is_tcf_pedit(act))
 			j++;
@@ -3693,6 +3695,9 @@ err_out:
 		tc_cleanup_flow_action(flow_action);
 
 	return err;
+err_out_locked:
+	spin_unlock_bh(&act->tcfa_lock);
+	goto err_out;
 }
 EXPORT_SYMBOL(tc_setup_flow_action);
 
