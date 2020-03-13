@@ -2140,6 +2140,8 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			(index >= 2 * intel_pt_validate_cap(vmx->pt_desc.caps,
 					PT_CAP_num_address_ranges)))
 			return 1;
+		if (is_noncanonical_address(data, vcpu))
+			return 1;
 		if (index % 2)
 			vmx->pt_desc.guest.addr_b[index / 2] = data;
 		else
@@ -2995,6 +2997,7 @@ u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa)
 void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	struct kvm *kvm = vcpu->kvm;
+	bool update_guest_cr3 = true;
 	unsigned long guest_cr3;
 	u64 eptp;
 
@@ -3011,15 +3014,18 @@ void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 			spin_unlock(&to_kvm_vmx(kvm)->ept_pointer_lock);
 		}
 
-		if (enable_unrestricted_guest || is_paging(vcpu) ||
-		    is_guest_mode(vcpu))
+		/* Loading vmcs02.GUEST_CR3 is handled by nested VM-Enter. */
+		if (is_guest_mode(vcpu))
+			update_guest_cr3 = false;
+		else if (enable_unrestricted_guest || is_paging(vcpu))
 			guest_cr3 = kvm_read_cr3(vcpu);
 		else
 			guest_cr3 = to_kvm_vmx(kvm)->ept_identity_map_addr;
 		ept_load_pdptrs(vcpu);
 	}
 
-	vmcs_writel(GUEST_CR3, guest_cr3);
+	if (update_guest_cr3)
+		vmcs_writel(GUEST_CR3, guest_cr3);
 }
 
 int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
@@ -7861,6 +7867,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.xsaves_supported = vmx_xsaves_supported,
 	.umip_emulated = vmx_umip_emulated,
 	.pt_supported = vmx_pt_supported,
+	.pku_supported = vmx_pku_supported,
 
 	.request_immediate_exit = vmx_request_immediate_exit,
 
