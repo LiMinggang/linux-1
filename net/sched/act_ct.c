@@ -573,6 +573,7 @@ static int tcf_conntrack_init(struct net *net, struct nlattr *nla,
 		}
 
 		ci = to_conntrack(*a);
+		spin_lock_bh(&ci->tcf_lock);
 		ci->tcf_action = parm->action;
 		ci->net = net;
 		ci->commit = parm->commit;
@@ -589,6 +590,7 @@ static int tcf_conntrack_init(struct net *net, struct nlattr *nla,
 			if (!tmpl) {
 				pr_debug("Failed to allocate conntrack template");
 				tcf_idr_cleanup(tn, parm->index);
+				spin_unlock_bh(&ci->tcf_lock);
 				return -ENOMEM;
 			}
 			__set_bit(IPS_CONFIRMED_BIT, &tmpl->status);
@@ -600,6 +602,7 @@ static int tcf_conntrack_init(struct net *net, struct nlattr *nla,
 		ci->mark_mask = parm->mark_mask;
 		memcpy(ci->labels, parm->labels, sizeof(parm->labels));
 		memcpy(ci->labels_mask, parm->labels_mask, sizeof(parm->labels_mask));
+		spin_unlock_bh(&ci->tcf_lock);
 
 		tcf_idr_insert(tn, *a);
 		ret = ACT_P_CREATED;
