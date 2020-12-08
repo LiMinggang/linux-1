@@ -123,6 +123,7 @@ enum flow_action_id {
 	FLOW_ACTION_QUEUE,
 	FLOW_ACTION_SAMPLE,
 	FLOW_ACTION_POLICE,
+	FLOW_ACTION_CT,
 };
 
 /* This is mirroring enum pedit_header_type definition for easy mapping between
@@ -176,6 +177,7 @@ struct flow_action_entry {
 			s64			burst;
 			u64			rate_bytes_ps;
 		} police;
+		u16                     ct_zone;        /* FLOW_ACTION_CT */
 	};
 };
 
