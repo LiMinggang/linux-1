@@ -1427,11 +1427,11 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 			goto destroy_macvlan_port;
 	}
 
+	dev->priv_flags |= IFF_MACVLAN;
 	err = register_netdevice(dev);
 	if (err < 0)
 		goto destroy_macvlan_port;
 
-	dev->priv_flags |= IFF_MACVLAN;
 	err = netdev_upper_dev_link(lowerdev, dev, extack);
 	if (err)
 		goto unregister_netdev;
