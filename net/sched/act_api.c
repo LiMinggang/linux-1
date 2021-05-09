@@ -30,6 +30,8 @@
 #include <net/act_api.h>
 #include <net/netlink.h>
 
+static int tcf_idr_delete_index(struct tcf_idrinfo *idrinfo, u32 index);
+
 static int tcf_action_goto_chain_init(struct tc_action *a, struct tcf_proto *tp)
 {
 	u32 chain_index = a->tcfa_action & TC_ACT_EXT_VAL_MASK;
@@ -115,6 +117,9 @@ static int __tcf_action_put(struct tc_action *p, bool bind)
 
 	if (bind)
 		atomic_dec(&p->tcfa_bindcnt);
+
+	if (atomic_read(&p->delayed_delete) && !atomic_read(&p->tcfa_bindcnt))
+		tcf_idr_delete_index(p->idrinfo, p->tcfa_index);
 
 	return 0;
 }
@@ -1183,13 +1188,16 @@ static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 		if (tcf_action_put(a)) {
 			/* last reference, action was deleted concurrently */
 			module_put(ops->owner);
-		} else  {
+		} else {
 			int ret;
 
 			/* now do the delete */
 			ret = tcf_idr_delete_index(idrinfo, act_index);
-			if (ret < 0)
+			if (ret < 0) {
+				if (ret == -EPERM && a->ops->set_delayed_delete)
+					a->ops->set_delayed_delete(a);
 				return ret;
+			}
 		}
 	}
 	return 0;

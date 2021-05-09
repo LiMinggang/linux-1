@@ -28,6 +28,7 @@ struct tc_action {
 	u32				tcfa_index;
 	refcount_t			tcfa_refcnt;
 	atomic_t			tcfa_bindcnt;
+	atomic_t			delayed_delete;
 	int				tcfa_action;
 	struct tcf_t			tcfa_tm;
 	struct gnet_stats_basic_packed	tcfa_bstats;
@@ -99,6 +100,7 @@ struct tc_action_ops {
 	size_t  (*get_fill_size)(const struct tc_action *act);
 	struct net_device *(*get_dev)(const struct tc_action *a);
 	void	(*put_dev)(struct net_device *dev);
+	void	(*set_delayed_delete)(struct tc_action *a);
 };
 
 struct tc_action_net {
