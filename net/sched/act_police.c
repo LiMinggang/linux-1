@@ -292,6 +292,11 @@ static int tcf_police_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
+static void tcf_police_set_delayed_delete(struct tc_action *a)
+{
+	atomic_inc(&a->delayed_delete);
+}
+
 MODULE_AUTHOR("Alexey Kuznetsov");
 MODULE_DESCRIPTION("Policing actions");
 MODULE_LICENSE("GPL");
@@ -306,6 +311,7 @@ static struct tc_action_ops act_police_ops = {
 	.walk		=	tcf_police_walker,
 	.lookup		=	tcf_police_search,
 	.size		=	sizeof(struct tcf_police),
+	.set_delayed_delete =	tcf_police_set_delayed_delete,
 };
 
 static __net_init int police_init_net(struct net *net)
