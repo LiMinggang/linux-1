@@ -1680,7 +1680,7 @@ int tc_setup_cb_egdev_all_register(const struct net_device *dev,
 
 	rtnl_lock();
 	tan = net_generic(dev_net(dev), tcf_action_net_id);
-	list_add(&egdev_cb->list, &tan->egdev_list);
+	list_add_tail(&egdev_cb->list, &tan->egdev_list);
 	rtnl_unlock();
 	return 0;
 }
