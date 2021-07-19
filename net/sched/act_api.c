@@ -1742,15 +1742,16 @@ int tc_setup_cb_egdev_all_call_fast(enum tc_setup_type type, void *type_data)
 {
 	struct tcf_action_net *tan = net_generic(&init_net, tcf_action_net_id);
 	struct tcf_action_egdev_cb *egdev_cb;
+	int ok_count = 0;
 	int err;
 
 	list_for_each_entry(egdev_cb, &tan->egdev_list, list) {
 		err = egdev_cb->cb(type, type_data, egdev_cb->cb_priv);
 		if (!err)
-			return 1;
+			ok_count++;
 	}
 
-	return 0;
+	return ok_count;
 }
 EXPORT_SYMBOL_GPL(tc_setup_cb_egdev_all_call_fast);
 
